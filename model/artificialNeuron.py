@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class ArtificialNeuron :
-    def __init__(self, X_train, y_train, X_test, y_test, learning_rate = 0.01, n_iter = 5000) :
+    def __init__(self, X_train, y_train, X_test, y_test, learning_rate = 0.01, n_iter = 3000) :
         self.X_train = X_train
         self.X_test = X_test
         self.y_train = y_train.reshape((y_train.shape[0], 1))
@@ -15,16 +15,23 @@ class ArtificialNeuron :
         self.std = np.std(self.X_train, axis=0)
         self.max = self.X_train.max(axis=0)
         self.min = self.X_train.min(axis=0)
+        # if activation != "sigmoid" and activation != "softmax" :
+        #     raise ValueError("Activation can support only 'sigmoid' or 'softmax'")
+        # self.activation = activation
         
     def __initialize(self) :
         W = np.random.randn(self.X_train.shape[1], 1)
         b = np.random.randn(1)
         return (W, b)
     
-    def __model(self, W, b, X) :
+    def __activation(self, W, b, X) :
         Z = X.dot(W) + b
-        A = 1 / (1 + np.exp(-Z))
-        return A
+        return(1 / (1 + np.exp(-Z)))
+        # if self.activation == "sigmoid" :
+        #     return(1 / (1 + np.exp(-Z)))
+        # elif self.activation == "softmax" :
+        #     e_z = np.exp(X)
+        #     return(e_z/np.sum(e_z))
     
     def __log_loss(self, A, y) :
         epsilon = 1e-15 #Eviter le 0 dans le log
@@ -44,19 +51,16 @@ class ArtificialNeuron :
         W, b = self.__initialize()
         self.X_train  = (self.X_train  - self.mean) / self.std
         self.X_test  = (self.X_test  - self.mean) / self.std
-        # self.X_train = (self.X_train - self.min) / (self.max -self.min)
-        activation = self.__model(W, b, self.X_train)
-        for i in range(self.n_iter) :
+        for epoch in range(self.n_iter) :
             #Train loop
-            activation = self.__model(W, b, self.X_train)
-            if i % 10 == 0 :
-                # loss in train set
-                loss = self.__log_loss(activation, self.y_train)
-                self.train_loss.append(loss)
-                #loss in test set
-                activation_test = self.__model(W, b, self.X_test)
-                loss_test = self.__log_loss(activation_test, self.y_test)
-                self.test_loss.append(loss_test)
+            activation = self.__activation(W, b, self.X_train)
+            # loss in train set
+            loss = self.__log_loss(activation, self.y_train)
+            self.train_loss.append(loss)
+            #loss in test set
+            activation_test = self.__activation(W, b, self.X_test)
+            loss_test = self.__log_loss(activation_test, self.y_test)
+            self.test_loss.append(loss_test)
                 
             dW, db = self.__gradients(activation)
             W, b = self.__update(dW, db, W,b)
@@ -70,5 +74,5 @@ class ArtificialNeuron :
         
     def predict(self, X_test) :
         X_test  = (X_test  - self.mean) / self.std
-        activation = self.__model(self.W, self.b, X_test)
+        activation = self.__activation(self.W, self.b, X_test)
         return activation >= 0.5
