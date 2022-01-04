@@ -1,6 +1,6 @@
 import pandas as pd
 from tools.Preprocessing import train_test_split, tranform_pandas_to_numpy, initialize
-from model.artificialNeuron import ArtificialNeuron
+from model.artificialNeuron import ArtificialNeuron, Layer
 # from sklearn.metrics import accuracy_score
 import argparse
 import os, shutil
@@ -23,8 +23,15 @@ def main() :
         os.mkdir('data')
     else :
         shutil.rmtree('data/')
-    # X_train, y_train, X_test, y_test = tranform_pandas_to_numpy(X_train, y_train, X_test, y_test)
-    # neural = ArtificialNeuron(X_train, y_train, X_test, y_test)
+    X_train, y_train, X_test, y_test = tranform_pandas_to_numpy(X_train, y_train, X_test, y_test)
+    neural = ArtificialNeuron(X_train,
+                              y_train,
+                              X_test,
+                              y_test,
+                              layers=[Layer(X_train.shape[1], 20),
+                                     Layer(20, 10),
+                                     Layer(10, 5),
+                                     Layer(5, 2)])
     # neural.fit()
     # if args.visu :
     #     neural.plot_loss()
