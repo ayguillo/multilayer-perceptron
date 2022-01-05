@@ -31,7 +31,9 @@ def main() :
                               layers=[Layer(X_train.shape[1], 20),
                                      Layer(20, 10),
                                      Layer(10, 5),
-                                     Layer(5, 2)])
+                                     Layer(5, 1)],
+                              n_iter = 45)
+    neural.train()
     # neural.fit()
     # if args.visu :
     #     neural.plot_loss()

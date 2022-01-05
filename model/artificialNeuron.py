@@ -3,27 +3,24 @@ import matplotlib.pyplot as plt
 
 class Layer :
     def __init__(self, input_size, output_size, activation="sigmoid") :
-        self.x = x
-        self.y = y
-        self.activation = activation
-        self.layer = self.init_network()
-        self.W = np.random.randn(self.input_size.shape[1], 1)
-        self.b = np.random.randn(self.output_size.shape[1], 1)
+        self.activation_str = activation
+        self.W = np.random.randn(input_size, output_size)
+        self.b = np.random.randn(1, output_size)
         self.a = 1
         self.Z = 1
         self.dW = 1
         self.db = 1
-    
-    def init_network(self) :
-        l =[]
-        for i in range(self.x * self.y):
-            l.append(np.random.randn())
-        return(np.array(l).reshape(self.x, self.y))
 
-    def activation(self, Z, b) :
-        if self.activation == "sigmoid" :
+    def activation(self, Z) :
+        epsilon = 1e-15
+        if self.activation_str == "sigmoid" :
             return(1 / (1 + np.exp(-Z)))
         
+    def activation_back(self, dA, Z) :
+        if self.activation_str == "sigmoid" :
+            sig = 1 / (1 + np.exp(-Z))
+            return(dA * sig * (1 - sig))
+    
 class ArtificialNeuron :
     def __init__(self, X_train, y_train, X_test, y_test, layers, learning_rate = 0.01, n_iter = 3000) :
         self.X_train = X_train
@@ -48,7 +45,10 @@ class ArtificialNeuron :
         return (W, b)
     
     def __activation(self, W, b, X) :
+        print(X.shape, W.shape)
+        print(X.dot(W).shape, b)
         Z = X.dot(W) + b
+
         return(1 / (1 + np.exp(-Z)))
         # if self.activation == "sigmoid" :
         #     return(1 / (1 + np.exp(-Z)))
@@ -67,16 +67,16 @@ class ArtificialNeuron :
     
     def __forward_prop(self, x) :
         current_a = x
-        for layer in range(len(self.layers)-1) :
+        for layer in range(len(self.layers)) :
             prev_a = current_a
-            W = self.layers[layer+1].W
-            b = self.layers[layer+1].b
-            z = prev.dot(W) + b
+            W = self.layers[layer].W
+            b = self.layers[layer].b
+            z = prev_a.dot(W) + b
             activation = self.layers[layer].activation(z)
-            activation = current_a
-            self.layers[layer].a = prev_a
-            self.layers[layer+1].Z = z
-        return(a)
+            current_a = activation
+            self.layers[layer-1].a = prev_a
+            self.layers[layer].Z = z
+        return(activation)
     
     def __back_prop(self, activation) :
         m = self.y_train.shape[1]
@@ -84,52 +84,60 @@ class ArtificialNeuron :
         dA_prev = - (y/activation - (1-y/1-activation))
         for layer in reversed(range(len(self.layers)-1)) :
             dA_curr = dA_prev
-            a = layers[layer].a
-            Z = layers[layer+1].Z
-            W = layers[layer+1].W
-            b = layers[layer+1].b
+            a = self.layers[layer-1].a
+            Z = self.layers[layer].Z
+            W = self.layers[layer].W
+            b = self.layers[layer].b
             m = a.shape[1]
-            dz = layers[layer].activation(Z)
-            dW = np.dot(dz, a.T) / m
-            db = np.sum(dz, axis+1, keepdims=True) / m
-            da = np.dot(W, dz)
-            layers[layer+1].dW = dW
-            layers[layer+1].db = db
+            dz = self.layers[layer].activation_back(dA_curr, Z)
+            dW = np.dot(dz.T, a) / m
+            db = np.sum(dz, axis=0, keepdims=True) / m
+            dA_prev = np.dot(W, dz.T)
+            self.layers[layer].dW = dW
+            self.layers[layer].db = db
     
     def __update(self) :
         for layer in self.layers :
             layer.W -= self.learning_rate * layer.dW
             layer.b -= self.learning_rate * layer.db
     
-    # def __update(self, dW, db, W, b) :
-    #     W = W - self.learning_rate * dW
-    #     b = b - self.learning_rate * db
-    #     return(W, b)
+    def train(self) :
+        self.X_train  = (self.X_train  - self.mean) / self.std
+        self.X_test  = (self.X_test  - self.mean) / self.std
+        for i in range(self.n_iter) :
+            a = self.__forward_prop(self.X_train)
+            self.__back_prop(a)
+            self.__update()
+        
+    def __update(self, dW, db, W, b) :
+        W = W - self.learning_rate * dW
+        b = b - self.learning_rate * db
+        return(W, b)
     
-    # def fit(self) :
-    #     W, b = self.__initialize()
-    #     self.X_train  = (self.X_train  - self.mean) / self.std
-    #     self.X_test  = (self.X_test  - self.mean) / self.std
-    #     for epoch in range(self.n_iter) :
-    #         #Train loop
-    #         activation = self.__activation(W, b, self.X_train)
-    #         # loss in train set
-    #         loss = self.__log_loss(activation, self.y_train)
-    #         self.train_loss.append(loss)
-    #         #loss in test set
-    #         activation_test = self.__activation(W, b, self.X_test)
-    #         loss_test = self.__log_loss(activation_test, self.y_test)
-    #         self.test_loss.append(loss_test)
+    def fit(self) :
+        W, b = self.__initialize()
+        self.X_train  = (self.X_train  - self.mean) / self.std
+        self.X_test  = (self.X_test  - self.mean) / self.std
+        for epoch in range(self.n_iter) :
+            #Train loop
+            activation = self.__activation(W, b, self.X_train)
+            # loss in train set
+            loss = self.__log_loss(activation, self.y_train)
+            self.train_loss.append(loss)
+            #loss in test set
+            activation_test = self.__activation(W, b, self.X_test)
+            loss_test = self.__log_loss(activation_test, self.y_test)
+            self.test_loss.append(loss_test)
                 
-    #         dW, db = self.__gradients(activation)
-    #         W, b = self.__update(dW, db, W,b)
-    #     self.W, self.b = W, b
+            dW, db = self.__gradients(activation)
+            W, b = self.__update(dW, db, W,b)
+        self.W, self.b = W, b
             
-    # def plot_loss(self) :
-    #     plt.plot(self.train_loss, label="train loss")
-    #     plt.plot(self.test_loss, label="test loss")
-    #     plt.legend()
-    #     plt.show()
+    def plot_loss(self) :
+        plt.plot(self.train_loss, label="train loss")
+        plt.plot(self.test_loss, label="test loss")
+        plt.legend()
+        plt.show()
         
     def predict(self, X_test) :
         X_test  = (X_test  - self.mean) / self.std
