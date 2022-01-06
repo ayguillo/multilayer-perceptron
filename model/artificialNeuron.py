@@ -2,17 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Layer :
-    def __init__(self, input_size, output_size, activation="sigmoid") :
+    def __init__(self, input_size, output_size, biais=1, activation="sigmoid") :
         self.activation_str = activation
         self.W = np.random.randn(input_size, output_size)
-        self.b = np.random.randn(1, output_size)
+        self.b = np.array([1 for i in range(output_size)])
         self.a = 1
         self.Z = 1
         self.dW = 1
         self.db = 1
 
     def activation(self, Z) :
-        epsilon = 1e-15
+        # print("Z", Z)
         if self.activation_str == "sigmoid" :
             return(1 / (1 + np.exp(-Z)))
         
@@ -45,8 +45,6 @@ class ArtificialNeuron :
         return (W, b)
     
     def __activation(self, W, b, X) :
-        print(X.shape, W.shape)
-        print(X.dot(W).shape, b)
         Z = X.dot(W) + b
 
         return(1 / (1 + np.exp(-Z)))
@@ -67,52 +65,50 @@ class ArtificialNeuron :
     
     def __forward_prop(self, x) :
         current_a = x
-        for layer in range(len(self.layers)) :
-            prev_a = current_a
-            W = self.layers[layer].W
-            b = self.layers[layer].b
-            z = prev_a.dot(W) + b
-            activation = self.layers[layer].activation(z)
+        for layer in self.layers :
+            Z = current_a.dot(layer.W) + layer.b
+            activation = layer.activation(Z)
+            layer.a = activation
+            layer.Z = Z
             current_a = activation
-            self.layers[layer-1].a = prev_a
-            self.layers[layer].Z = z
         return(activation)
     
     def __back_prop(self, activation) :
+        dA_prev = activation
         m = self.y_train.shape[1]
-        y = self.y_train.reshape(activation.shape)
-        dA_prev = - (y/activation - (1-y/1-activation))
-        for layer in reversed(range(len(self.layers)-1)) :
+        for layer in reversed(range(1, len(self.layers))) :
             dA_curr = dA_prev
-            a = self.layers[layer-1].a
+            a = self.layers[layer].a
             Z = self.layers[layer].Z
             W = self.layers[layer].W
             b = self.layers[layer].b
-            m = a.shape[1]
             dz = self.layers[layer].activation_back(dA_curr, Z)
-            dW = np.dot(dz.T, a) / m
+            dW = np.dot(dz, a) / m
             db = np.sum(dz, axis=0, keepdims=True) / m
-            dA_prev = np.dot(W, dz.T)
+            dA_prev = np.dot(W, dz)
             self.layers[layer].dW = dW
             self.layers[layer].db = db
     
     def __update(self) :
         for layer in self.layers :
-            layer.W -= self.learning_rate * layer.dW
-            layer.b -= self.learning_rate * layer.db
+            layer.W = layer.W - self.learning_rate * layer.dW
+            layer.b = layer.b - self.learning_rate * layer.db
     
     def train(self) :
         self.X_train  = (self.X_train  - self.mean) / self.std
         self.X_test  = (self.X_test  - self.mean) / self.std
         for i in range(self.n_iter) :
-            a = self.__forward_prop(self.X_train)
-            self.__back_prop(a)
-            self.__update()
+            print("N_ITER", i)
+            for idx,inputs in enumerate(self.X_train):
+                a = self.__forward_prop(inputs)
+                self.__back_prop(a)
+                self.__update()
+                # print("W", self.layers[0].W)
         
-    def __update(self, dW, db, W, b) :
-        W = W - self.learning_rate * dW
-        b = b - self.learning_rate * db
-        return(W, b)
+    # def __update(self, dW, db, W, b) :
+    #     W = W - self.learning_rate * dW
+    #     b = b - self.learning_rate * db
+    #     return(W, b)
     
     def fit(self) :
         W, b = self.__initialize()
